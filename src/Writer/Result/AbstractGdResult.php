@@ -8,6 +8,9 @@ use Endroid\QrCode\Matrix\MatrixInterface;
 
 abstract class AbstractGdResult extends AbstractResult
 {
+    /**
+     * @param mixed[] $options
+     */
     public function __construct(
         MatrixInterface $matrix,
         protected \GdImage $image,

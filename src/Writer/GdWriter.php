@@ -12,6 +12,7 @@ use Endroid\QrCode\Label\Alignment\LabelAlignmentLeft;
 use Endroid\QrCode\Label\Alignment\LabelAlignmentRight;
 use Endroid\QrCode\Label\LabelInterface;
 use Endroid\QrCode\Logo\LogoInterface;
+use Endroid\QrCode\Matrix\MatrixInterface;
 use Endroid\QrCode\QrCodeInterface;
 use Endroid\QrCode\RoundBlockSizeMode\RoundBlockSizeModeNone;
 use Endroid\QrCode\Writer\Result\AbstractGdResult;
@@ -30,7 +31,7 @@ class GdWriter implements WriterInterface, ValidatingWriterInterface
             $this->resultClass = $options[self::WRITER_OPTION_RESULT_CLASS];
 
             if (!is_subclass_of($this->resultClass, AbstractGdResult::class)) {
-                throw new \Exception($this->resultClass . ' must extend ' . AbstractGdResult::class);
+                throw new \Exception($this->resultClass.' must extend '.AbstractGdResult::class);
             }
         }
 
@@ -119,20 +120,36 @@ class GdWriter implements WriterInterface, ValidatingWriterInterface
             imagesavealpha($targetImage, true);
         }
 
-        $result = new $this->resultClass($matrix, $targetImage, $options);
+        $result = $this->buildResult($matrix, $targetImage, $options);
 
         if ($logo instanceof LogoInterface) {
-            $result = $this->addLogo($logo, $result);
+            $result = $this->addLogo($logo, $result, $options);
         }
 
         if ($label instanceof LabelInterface) {
-            $result = $this->addLabel($label, $result);
+            $result = $this->addLabel($label, $result, $options);
         }
 
         return $result;
     }
 
-    private function addLogo(LogoInterface $logo, AbstractGdResult $result): AbstractGdResult
+    /**
+     * @param mixed[] $options
+     */
+    private function buildResult(MatrixInterface $matrix, \GdImage $image, array $options = []): AbstractGdResult
+    {
+        $result = new $this->resultClass($matrix, $image, $options);
+        if (!$result instanceof AbstractGdResult) {
+            throw new \Exception($this->resultClass.' must return '.AbstractGdResult::class);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param mixed[] $options
+     */
+    private function addLogo(LogoInterface $logo, AbstractGdResult $result, array $options = []): AbstractGdResult
     {
         $logoImageData = LogoImageData::createForLogo($logo);
 
@@ -169,10 +186,13 @@ class GdWriter implements WriterInterface, ValidatingWriterInterface
             imagesy($logoImageData->getImage())
         );
 
-        return new $this->resultClass($matrix, $targetImage);
+        return $this->buildResult($matrix, $targetImage);
     }
 
-    private function addLabel(LabelInterface $label, AbstractGdResult $result): AbstractGdResult
+    /**
+     * @param mixed[] $options
+     */
+    private function addLabel(LabelInterface $label, AbstractGdResult $result, array $options = []): AbstractGdResult
     {
         $targetImage = $result->getImage();
 
@@ -198,7 +218,7 @@ class GdWriter implements WriterInterface, ValidatingWriterInterface
 
         imagettftext($targetImage, $label->getFont()->getSize(), 0, $x, $y, $textColor, $label->getFont()->getPath(), $label->getText());
 
-        return new $this->resultClass($result->getMatrix(), $targetImage);
+        return $this->buildResult($result->getMatrix(), $targetImage);
     }
 
     public function validateResult(ResultInterface $result, string $expectedData): void
